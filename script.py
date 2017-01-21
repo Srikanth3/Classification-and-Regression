@@ -1,3 +1,4 @@
+
 import numpy as np
 from scipy.optimize import minimize
 from scipy.io import loadmat
@@ -138,6 +139,10 @@ def learnOLERegression(X, y):
     # Output:
     # w = d x 1
     # IMPLEMENT THIS METHOD
+    X_t = X.T
+    tmp_prod = np.dot(X_t, X)
+    inv_tmp_prod = inv(tmp_prod)
+    w = np.dot(inv_tmp_prod, np.dot(X_t, y))
     return w
 
 
@@ -166,8 +171,15 @@ def testOLERegression(w, Xtest, ytest):
     # rmse
 
     # IMPLEMENT THIS METHOD
-    return rmse
+    N = Xtest.shape[0]
+    rmse =0
+    w_trans = w.T
+    for i in range (0,N):
+        difference = (ytest[i] - np.dot(w_trans,Xtest[i]))
+        rmse = rmse + difference**2
 
+    rmse = np.divide(np.sqrt(rmse), N)
+    return rmse
 
 def regressionObjVal(w, X, y, lambd):
     # compute squared error (scalar) and gradient of squared error with respect
@@ -175,7 +187,22 @@ def regressionObjVal(w, X, y, lambd):
     # lambda
 
     # IMPLEMENT THIS METHOD
+    w=np.array([w]).T
+    t11=-np.dot(np.transpose(y),X)
+    t12=np.dot(np.transpose(w),np.dot(np.transpose(X),X))
+    t2=np.dot(lambd,np.transpose(w))
+    t1=(t11+t12)/X.shape[0]
+    e12=np.dot(X,w)
+    e11=y;
+    e1=np.subtract(e11,e12)
+    e1=np.dot(np.transpose(e1),e1)/(2*X.shape[0])
+    e22=np.dot(np.transpose(w),w)
+    e2=np.dot(lambd,e22)/2
+    error=(e1+e2).flatten()
+
+    error_grad=(t1+t2).flatten()
     return error, error_grad
+
 
 
 def mapNonLinear(x, p):
@@ -185,6 +212,11 @@ def mapNonLinear(x, p):
     # Outputs:
     # Xd - (N x (d+1))
     # IMPLEMENT THIS METHOD
+    N = x.shape[0]
+    Xd = np.ones([N, p+1])
+    for i in range(0, N):
+        for j in range(0, p+1):
+            Xd[i][j] = np.power(x[i], j)
     return Xd
 
 
@@ -193,10 +225,10 @@ def mapNonLinear(x, p):
 # Problem 1
 # load the sample data
 if sys.version_info.major == 2:
-    X, y, Xtest, ytest = pickle.load(open('sample.pickle', 'rb'))
+    X, y, Xtest, ytest = pickle.load(open('E:/Spring 2016/Machine leanring/Assignment 2/sample.pickle', 'rb'))
 else:
     X, y, Xtest, ytest = pickle.load(
-        open('sample.pickle', 'rb'), encoding='latin1')
+        open('E:/Spring 2016/Machine leanring/Assignment 2/sample.pickle', 'rb'), encoding='latin1')
 
 # LDA
 means, covmat = ldaLearn(X, y)
@@ -230,10 +262,10 @@ plt.show()
 # Problem 2
 
 if sys.version_info.major == 2:
-    X, y, Xtest, ytest = pickle.load(open('diabetes.pickle', 'rb'))
+    X, y, Xtest, ytest = pickle.load(open('E:/Spring 2016/Machine leanring/Assignment 2/diabetes.pickle', 'rb'))
 else:
     X, y, Xtest, ytest = pickle.load(
-        open('diabetes.pickle', 'rb'), encoding='latin1')
+        open('E:/Spring 2016/Machine leanring/Assignment 2/diabetes.pickle', 'rb'), encoding='latin1')
 
 # add intercept
 X_i = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1)
@@ -241,27 +273,37 @@ Xtest_i = np.concatenate((np.ones((Xtest.shape[0], 1)), Xtest), axis=1)
 
 w = learnOLERegression(X, y)
 mle = testOLERegression(w, Xtest, ytest)
+mle_train = testOLERegression(w,X,y)
 
 w_i = learnOLERegression(X_i, y)
 mle_i = testOLERegression(w_i, Xtest_i, ytest)
+mle_train_i = testOLERegression(w_i,X_i,y)
 
-print('RMSE without intercept ' + str(mle))
-print('RMSE with intercept ' + str(mle_i))
+print('Testing data - RMSE without intercept ' + str(mle))
+print('Testing data - RMSE with intercept ' + str(mle_i))
+print('Training data - RMSE without intercept '+ str(mle_train))
+print('Training data - RMSE without intercept '+ str(mle_train_i))
+
 
 # Problem 3
 k = 101
-lambdas = np.linspace(0, 1, num=k)
+lambdas = np.linspace(0,.004, num=k)
 i = 0
 rmses3 = np.zeros((k, 1))
+rmses3_train = np.zeros((k, 1))
 for lambd in lambdas:
     w_l = learnRidgeRegression(X_i, y, lambd)
     rmses3[i] = testOLERegression(w_l, Xtest_i, ytest)
+    rmses3_train[i] = testOLERegression(w_l, X_i, y)
     i = i + 1
 plt.plot(lambdas, rmses3)
+plt.plot(lambdas,rmses3_train)
+plt.legend(('Test Data','Train Data'))
+plt.show()
 
 # Problem 4
 k = 101
-lambdas = np.linspace(0, 1, num=k)
+lambdas = np.linspace(0, .004, num=k)
 i = 0
 rmses4 = np.zeros((k, 1))
 opts = {'maxiter': 100}  # Preferred value.
@@ -275,6 +317,7 @@ for lambd in lambdas:
     rmses4[i] = testOLERegression(w_l, Xtest_i, ytest)
     i = i + 1
 plt.plot(lambdas, rmses4)
+plt.show()
 
 # Problem 5
 pmax = 7
@@ -289,3 +332,5 @@ for p in range(pmax):
     rmses5[p, 1] = testOLERegression(w_d2, Xdtest, ytest)
 plt.plot(range(pmax), rmses5)
 plt.legend(('No Regularization', 'Regularization'))
+plt.show()
+
